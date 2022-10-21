@@ -1,0 +1,121 @@
+* Notes
+I explored what options exist for the 'show' action within the 'app/controllers/productions_controller.rb' controller file with 'byebug':
+#+begin_src ruby
+class ProductionsController < ApplicationController
+    def index
+        productions = Production.all()
+        render json: productions, status: :ok
+    end
+
+    def show
+        byebug
+    end
+end
+#+end_src
+
+I checked the available routes beforehand with the 'rails routes' command:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-4/phase-4-lecture-videos-show/flatiron-theater $ rails routes
+      Prefix Verb   URI Pattern                 Controller#Action
+crew_members GET    /crew_members(.:format)     crew_members#index
+             POST   /crew_members(.:format)     crew_members#create
+ crew_member GET    /crew_members/:id(.:format) crew_members#show
+             PATCH  /crew_members/:id(.:format) crew_members#update
+             PUT    /crew_members/:id(.:format) crew_members#update
+             DELETE /crew_members/:id(.:format) crew_members#destroy
+ productions GET    /productions(.:format)      productions#index
+  production GET    /productions/:id(.:format)  productions#show
+#+end_src
+
+I then adjusted the Gemfile to include 'byebug' since this was a MAJOR flaw that the instructor forgot to point out beforehand, and then ran 'bundle install' afterwards aka here are the contents of the 'Gemfile' beforehand:
+#+begin_src ruby
+source "https://rubygems.org"
+git_source(:github) { |repo| "https://github.com/#{repo}.git" }
+
+ruby "2.7.4"
+
+# Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
+gem "rails", "~> 7.0.4"
+
+# Use sqlite3 as the database for Active Record
+gem "sqlite3", "~> 1.4"
+
+# Use the Puma web server [https://github.com/puma/puma]
+gem "puma", "~> 5.0"
+
+# Windows does not include zoneinfo files, so bundle the tzinfo-data gem
+gem "tzinfo-data", platforms: %i[ mingw mswin x64_mingw jruby ]
+
+# Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin AJAX possible
+# gem "rack-cors"
+
+group :development, :test do
+  # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
+  gem "debug", platforms: %i[ mri mingw x64_mingw ]
+end
+
+group :development do
+  # Speed up commands on slow machines / big apps [https://github.com/rails/spring]
+  # gem "spring"
+  gem "faker", :git => "https://github.com/faker-ruby/faker.git", :branch => "main"
+  gem "byebug"
+end
+#+end_src
+
+I then started the 'rails s' server, and navigated to the "http://localhost:3000/productions/5" URL in a browser, and then within the 'byebug' console, I observed the 'params' hash accordingly with the proper '5' value for the ':id' symbol:
+#+begin_src bash
+(byebug):1:in `show'
+app/controllers/productions_controller.rb:9:in `show'
+Started GET "/productions/5" for 127.0.0.1 at 2022-10-21 15:16:08 -0500
+Processing by ProductionsController#show as HTML
+  Parameters: {"id"=>"5"}
+Return value is: nil
+#+end_src
+
+I then modified the corresponding 'show' action in the 'app/controllers/productions_controller.rb' controller file with the following contents to add more error handling when a user decides to access a 'production' with a non-existant id value:
+#+begin_src ruby
+class ProductionsController < ApplicationController
+    def index
+        productions = Production.all()
+        render json: productions, status: :ok
+    end
+
+    def show
+        production = Production.find_by(id: params[:id])
+
+        if production
+            render json: production, status: :ok
+        else
+            render json: {error: "production not found"}, status: :not_found
+        end
+    end
+end
+#+end_src
+
+I then tested this revision to the controller file by visiting the 'http://127.0.0.1:3000/productions/5' URL, and received the following appropriate JSON response:
+#+begin_src json
+// 20221021152219
+// http://127.0.0.1:3000/productions/5
+
+{
+  "id": 5,
+  "title": "Carmen",
+  "genre": "Opera",
+  "budget": 80000,
+  "image": "",
+  "ongoing": null,
+  "created_at": "2022-10-21T19:12:16.698Z",
+  "updated_at": "2022-10-21T19:12:16.698Z",
+  "description": null
+}
+#+end_src
+
+I then tested the following 'http://127.0.0.1:3000/productions/100' URL and received the following error as well:
+#+begin_src json
+// 20221021152415
+// http://127.0.0.1:3000/productions/100
+
+{
+  "error": "production not found"
+}
+#+end_src
